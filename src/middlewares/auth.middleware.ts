@@ -37,7 +37,7 @@ export const verifyUser = asyncHandler(
             email: decodedToken?.email,
           },
           {
-            userId: decodedToken?._id,
+            userId: decodedToken.userId,
           },
         ],
       });

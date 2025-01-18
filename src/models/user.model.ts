@@ -120,7 +120,7 @@ userSchema.methods.generateAccessToken = function (): string {
   }
   return jwt.sign(
     {
-      _id: user._id,
+      userId: user._id,
       email: user.email,
       fullName: user.fullName,
     },
@@ -140,7 +140,7 @@ userSchema.methods.generateRefreshToken = function (): string {
   }
   return jwt.sign(
     {
-      _id: user._id,
+      userId: user._id,
       email: user.email,
       fullName: user.fullName,
     },
