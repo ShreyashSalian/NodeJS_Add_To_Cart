@@ -2,13 +2,13 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface CategoryDocument extends Document {
   _id: string;
-  category_name: string;
-  category_description: string;
-  category_slug: string;
-  category_image: string;
+  categoryName: string;
+  categoryDescription: string;
+  categorySlug: string;
+  categoryImage: string;
   status: string;
   keywords: string[];
-  is_featured: boolean;
+  isFeatured: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -20,19 +20,19 @@ export enum CategoryStatus {
 
 const categorySchema = new Schema<CategoryDocument>(
   {
-    category_name: {
+    categoryName: {
       type: String,
       required: true,
     },
-    category_description: {
+    categoryDescription: {
       type: String,
       required: true,
     },
-    category_slug: {
+    categorySlug: {
       type: String,
       required: true,
     },
-    category_image: {
+    categoryImage: {
       type: String,
       required: true,
     },
@@ -47,7 +47,7 @@ const categorySchema = new Schema<CategoryDocument>(
         required: true,
       },
     ],
-    is_featured: {
+    isFeatured: {
       type: Boolean,
       default: false,
     },

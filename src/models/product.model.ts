@@ -11,15 +11,15 @@ export interface Size {
 //Define the interface for the product document
 export interface ProductDocument extends Document {
   _id: string;
-  product_name: string;
-  product_description: string;
-  product_quantity?: number; // Only required if product size is empty
-  product_size: Size[];
-  product_images: String[];
-  default_price?: number; //Only required if product size is empty
-  product_category: Types.ObjectId;
-  average_rating: number;
-  rating_count: number;
+  productName: string;
+  productDescription: string;
+  productQuantity?: number; // Only required if product size is empty
+  productSize: Size[];
+  productImages: String[];
+  defaultPrice?: number; //Only required if product size is empty
+  productCategory: Types.ObjectId;
+  averageRating: number;
+  ratingCount: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -47,42 +47,42 @@ const sizeSchema = new Schema<Size>({
 
 const productSchema = new Schema<ProductDocument>(
   {
-    product_name: {
+    productName: {
       type: String,
       required: true,
     },
-    product_description: {
+    productDescription: {
       type: String,
       required: true,
     },
-    product_quantity: {
+    productQuantity: {
       type: Number,
       required: function (this: ProductDocument) {
-        return this.product_size.length === 0; // Required if `product_size` is empty
+        return this.productSize.length === 0; // Required if `product_size` is empty
       },
     },
-    product_size: [sizeSchema],
-    default_price: {
+    productSize: [sizeSchema],
+    defaultPrice: {
       type: Number,
       required: function (this: ProductDocument) {
-        return this.product_size.length === 0; // Required if `product_size` is empty
+        return this.productSize.length === 0; // Required if `product_size` is empty
       },
     },
-    product_images: [
+    productImages: [
       {
         type: String,
         required: true,
       },
     ],
-    product_category: {
+    productCategory: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
     },
-    average_rating: {
+    averageRating: {
       type: Number,
       default: 0,
     },
-    rating_count: {
+    ratingCount: {
       type: Number,
       default: 0,
     },
