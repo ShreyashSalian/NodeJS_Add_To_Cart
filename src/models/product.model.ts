@@ -18,6 +18,8 @@ export interface ProductDocument extends Document {
   product_images: String[];
   default_price?: number; //Only required if product size is empty
   product_category: Types.ObjectId;
+  average_rating: number;
+  rating_count: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -75,6 +77,14 @@ const productSchema = new Schema<ProductDocument>(
     product_category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
+    },
+    average_rating: {
+      type: Number,
+      default: 0,
+    },
+    rating_count: {
+      type: Number,
+      default: 0,
     },
   },
   {
