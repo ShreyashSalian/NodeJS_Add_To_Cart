@@ -3,15 +3,15 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 export interface CustomAddressDocument extends Document {
   _id: string;
   user: Types.ObjectId;
-  address_line_1: string;
-  address_line_2?: string;
+  addressLine1: string;
+  addressLine2?: string;
   landMark?: string;
-  special_instruction?: string;
+  specialInstruction?: string;
   city: string;
   state: string;
-  postal_code: string;
+  postalCode: string;
   country: string;
-  address_type: string;
+  addressType: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -27,13 +27,13 @@ const customAddressSchema = new Schema<CustomAddressDocument>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
-    address_line_1: {
+    addressLine1: {
       type: String,
     },
-    address_line_2: {
+    addressLine2: {
       type: String,
     },
-    special_instruction: {
+    specialInstruction: {
       type: String,
     },
     city: {
@@ -42,13 +42,13 @@ const customAddressSchema = new Schema<CustomAddressDocument>(
     state: {
       type: String,
     },
-    postal_code: {
+    postalCode: {
       type: String,
     },
     country: {
       type: String,
     },
-    address_type: {
+    addressType: {
       type: String,
       required: true,
       enum: Object.values(AddressType),

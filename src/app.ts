@@ -4,6 +4,8 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 import connectDB from "./database/connect";
+
+import indexRoutes from "./routes/index.routes";
 dotnev.config();
 
 const app = express();
@@ -31,3 +33,5 @@ connectDB()
   .catch(() => {
     console.log("Error while connecting to the database");
   });
+
+app.use(indexRoutes);

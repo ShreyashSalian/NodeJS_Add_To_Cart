@@ -4,15 +4,15 @@ export interface itemDocument extends Document {
   _id: string;
   productId: Types.ObjectId;
   size: string;
-  product_name: string;
+  productName: string;
   quantity: number;
-  actual_price: number;
+  actualPrice: number;
   price: number;
 }
 
 export interface CartDocument extends Document {
   _id: string;
-  unique_id: string;
+  uniqueId: string;
   items: [itemDocument];
   bill: number;
 }
@@ -30,7 +30,7 @@ const itemSchema = new Schema<itemDocument>(
       type: Number,
       required: true,
     },
-    actual_price: {
+    actualPrice: {
       type: Number,
     },
     price: {
@@ -43,7 +43,7 @@ const itemSchema = new Schema<itemDocument>(
 );
 
 const cartSchema = new Schema<CartDocument>({
-  unique_id: {
+  uniqueId: {
     type: String,
     required: true,
   },

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { addUserAdmin } from "../utils/addAdmin.util";
 
 const connectDB = async (): Promise<void> => {
   try {
@@ -8,6 +9,9 @@ const connectDB = async (): Promise<void> => {
         : `${process.env.LIVE_PATH}/${process.env.DATABASE_NAME}`;
     const connection = await mongoose.connect(DB_URL);
     console.log(`Connected to database : ${connection.connection.host}`);
+
+    //Add the admin user
+    addUserAdmin();
   } catch (error: any) {
     console.log(`Can not connect to mongodb`, error);
     process.exit(1);
