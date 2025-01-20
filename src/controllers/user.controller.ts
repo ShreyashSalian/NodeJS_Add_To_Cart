@@ -1,5 +1,7 @@
 import express, { Request, Response } from "express";
 import { User } from "../models/user.model";
+import path from "path";
+import fs from "fs";
 import {
   asyncHandler,
   generateEmailVerificationToken,
@@ -69,3 +71,102 @@ export const addNewUser = asyncHandler(async (req: Request, res: Response) => {
     error: null,
   });
 });
+
+//UPDATE => Used to update the user details
+export const updateUserDetails = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { contactNumber, fullName } = req.body;
+    const user = req.user?.userId;
+    const updateDetail = await User.findByIdAndUpdate(
+      user,
+      {
+        $set: {
+          fullName,
+          contactNumber,
+        },
+      },
+      {
+        new: true,
+      }
+    ).select("-password -refreshToken");
+    if (!updateDetail) {
+      return res.status(500).json({
+        status: 500,
+        message: null,
+        data: null,
+        error: "Sorry, User details can not be updated.",
+      });
+    } else {
+      return res.status(200).json({
+        status: 200,
+        message: "The user details has been updated.",
+        data: updateDetail,
+        error: null,
+      });
+    }
+  }
+);
+
+//POST => Used to update the user profile Image
+export const updateProfileImage = asyncHandler(
+  async (req: Request, res: Response) => {
+    const customReq = req as RequestWithFile;
+    // Find the user by ID
+    const user = await User.findById(req.user?.userId).select(
+      "-password -refreshToken"
+    );
+    if (!user) {
+      return res.status(400).json({
+        status: 400,
+        error: "User not found",
+        message: null,
+        data: null,
+      });
+    }
+
+    try {
+      // Delete old profile image if it exists
+      if (user.profileImage) {
+        const oldImagePath = path.resolve(
+          __dirname,
+          "../../public/images",
+          user.profileImage
+        );
+        fs.unlink(oldImagePath, (err) => {
+          if (err) {
+            console.error("Error deleting old profile image:", err.message);
+          }
+        });
+      }
+
+      // Update or remove the profile image
+      if (customReq.file) {
+        // If a new image is provided, update the field
+        user.profileImage = customReq.file.filename;
+      } else {
+        // If no file is provided, clear the profileImage field
+        user.profileImage = "";
+      }
+
+      // Save the user with the updated profile image
+      await user.save({ validateBeforeSave: false });
+
+      return res.status(200).json({
+        status: 200,
+        message: customReq.file
+          ? "Profile image updated successfully."
+          : "Profile image removed successfully.",
+        data: user,
+        error: null,
+      });
+    } catch (error: any) {
+      console.error("Error updating profile image:", error.message);
+      return res.status(500).json({
+        status: 500,
+        error: error.message,
+        message: "Failed to update or remove profile image.",
+        data: null,
+      });
+    }
+  }
+);

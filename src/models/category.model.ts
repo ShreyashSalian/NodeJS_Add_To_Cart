@@ -9,6 +9,7 @@ export interface CategoryDocument extends Document {
   status: string;
   keywords: string[];
   isFeatured: boolean;
+  isDeleted: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -34,7 +35,6 @@ const categorySchema = new Schema<CategoryDocument>(
     },
     categoryImage: {
       type: String,
-      required: true,
     },
     status: {
       type: String,
@@ -48,6 +48,10 @@ const categorySchema = new Schema<CategoryDocument>(
       },
     ],
     isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    isDeleted: {
       type: Boolean,
       default: false,
     },
