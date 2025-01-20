@@ -20,6 +20,7 @@ export interface ProductDocument extends Document {
   productCategory: Types.ObjectId;
   averageRating: number;
   ratingCount: number;
+  isDeleted: Boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -74,6 +75,10 @@ const productSchema = new Schema<ProductDocument>(
         required: true,
       },
     ],
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
     productCategory: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
