@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
+import fs from "fs";
 
 //This function is used to trim the input
 
@@ -32,3 +33,14 @@ export const generateEmailVerificationToken = () => {
 export interface RequestWithFile extends Request {
   file?: Express.Multer.File; // Multer's file object for a single file
 }
+
+// Utility function to delete files if validation fails
+export const deleteFile = (file: Express.Multer.File | undefined) => {
+  if (file) {
+    fs.unlinkSync(file.path);
+  }
+};
+
+// Allowed file types and maximum size
+export const allowedMimeTypes = ["image/jpeg", "image/png"];
+export const maxSize = 2 * 1024 * 1024; // 2MB

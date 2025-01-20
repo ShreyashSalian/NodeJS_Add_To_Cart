@@ -1,10 +1,12 @@
 import express from "express";
 import userRoutes from "./user.routes";
 import authRoutes from "./auth.routes";
+import categoryRoutes from "./category.routes";
 
 const indexRoutes = express.Router();
 indexRoutes.use("/api/v1/users", userRoutes);
 indexRoutes.use("/api/v1/auth", authRoutes);
+indexRoutes.use("/api/v1/categories", categoryRoutes);
 
 indexRoutes.get(
   "/api/v1",
