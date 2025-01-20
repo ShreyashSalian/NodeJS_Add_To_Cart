@@ -34,6 +34,10 @@ export interface RequestWithFile extends Request {
   file?: Express.Multer.File; // Multer's file object for a single file
 }
 
+export interface CustomRequestWithFiles extends express.Request {
+  files?: Express.Multer.File[]; // Adjusted to handle multiple files
+}
+
 // Utility function to delete files if validation fails
 export const deleteFile = (file: Express.Multer.File | undefined) => {
   if (file) {
