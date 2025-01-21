@@ -1,8 +1,14 @@
 import express from "express";
 import { Product } from "../models/product.model";
-import { asyncHandler, CustomRequestWithFiles } from "../utils/fuction";
+import {
+  asyncHandler,
+  buildSearchPaginationSortingPipeline,
+  CustomRequestWithFiles,
+} from "../utils/fuction";
 import fs from "fs";
+import { CollationOptions } from "mongodb";
 import path from "path";
+import Redis from "ioredis";
 //POST => Used to add the new product
 export const addNewProduct = asyncHandler(
   async (req: express.Request, res: express.Response) => {
@@ -285,7 +291,7 @@ export const deleteMutipleProductImages = asyncHandler(
 export interface RequestWithFiles extends express.Request {
   files?: Express.Multer.File[]; // Adjusted to handle multiple files
 }
-
+//POST => Used to upload multiple images for the product
 export const uploadMultipleProductImages = asyncHandler(
   async (
     req: express.Request,
@@ -329,6 +335,102 @@ export const uploadMultipleProductImages = asyncHandler(
       status: 200,
       message: "Product images uploaded successfully.",
       data: productFound,
+      error: null,
+    });
+  }
+);
+//POST => List all product with pagination, sorting and searching
+export const listAllProducts = asyncHandler(
+  async (req: express.Request, res: express.Response) => {
+    const {
+      search = "",
+      page = 1,
+      limit = 10,
+      sortField = "",
+      sortOrder,
+    } = req.body;
+    //initialize the redis
+    console.log(req.body);
+    const client = new Redis();
+    //Convert query parameters to proper types
+    const currentPage = parseInt(page as string, 10) || 10;
+    const pageSize = parseInt(limit as string, 10) || 10;
+
+    //Generate unique cache key
+    const cacheKey = `products_${JSON.stringify(
+      search
+    )}_${currentPage}_${pageSize}_${sortField}_${sortOrder}`;
+
+    //Check redis cache
+    const cacheData = await client.get(cacheKey);
+    if (cacheData) {
+      return res.status(200).json({
+        status: 200,
+        message: "Project fetched from cache.",
+        data: JSON.parse(cacheData),
+        error: null,
+      });
+    }
+    //Define searchable fields
+    const searchFields = ["productName", "productDescription", "ratingCount"];
+    //Build the aggregation pipeline
+    const pipeline = [
+      {
+        $lookup: {
+          from: "categories",
+          localField: "productCategory",
+          foreignField: "_id",
+          as: "categoryDetail",
+        },
+      },
+      {
+        $unwind: {
+          path: "$categoryDetail",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      ...buildSearchPaginationSortingPipeline(
+        searchFields,
+        search as string,
+        sortField as string,
+        sortOrder as "asc" | "desc",
+        currentPage,
+        pageSize
+      ),
+    ];
+    //Execute the pipeline
+
+    const productDetails = await Product.aggregate(pipeline);
+    //Get total count for pagination
+    const totalCountPipeline = pipeline.filter(
+      (stage) => !("$skip" in stage || "$limit" in stage)
+    );
+    const totalCount = await Product.aggregate([
+      ...totalCountPipeline,
+      { $count: "totalCount" },
+    ]);
+    const totalProducts = totalCount.length > 0 ? totalCount[0].totalCount : 0;
+    if (productDetails.length === 0) {
+      return res.status(200).json({
+        status: 200,
+        message: "No project has been created.",
+        data: { products: [], totalProducts, totalPages: 0, currentPage },
+        error: null,
+      });
+    }
+    //If the project length is greater than zero
+    const responeData = {
+      projects: productDetails,
+      totalProducts,
+      totalPages: Math.ceil(totalProducts / pageSize),
+      currentPage,
+    };
+    //Cachen data in redis
+    await client.set(cacheKey, JSON.stringify(responeData), "EX", 30); //For 30 seconds
+    return res.status(200).json({
+      status: 200,
+      message: "The list of products",
+      data: responeData,
       error: null,
     });
   }

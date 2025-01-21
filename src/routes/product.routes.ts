@@ -7,6 +7,7 @@ import {
   deleteMutipleProductImages,
   deleteProduct,
   getProductByID,
+  listAllProducts,
   updateProductDetails,
   updateProductStatus,
   uploadMultipleProductImages,
@@ -55,5 +56,7 @@ productRoutes.post(
   verifyUser,
   uploadMultipleProductImages
 );
+//Used to list all the products with pagination sorting and searching
+productRoutes.post("/lists", verifyUser, listAllProducts);
 
 export default productRoutes;
