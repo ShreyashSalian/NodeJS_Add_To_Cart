@@ -1,16 +1,28 @@
 import { checkSchema, Meta } from "express-validator";
 import fs from "fs";
 
+import {
+  capitalizeFirstLetter,
+  toCapitalCase,
+  trimInput,
+} from "../utils/fuction";
+
 export const productValidator = () => {
   return checkSchema({
     productName: {
       notEmpty: {
         errorMessage: "Please enter the product name.",
       },
+      customSanitizer: {
+        options: (value: string) => capitalizeFirstLetter(value),
+      },
     },
     productDescription: {
       notEmpty: {
         errorMessage: "Please enter the product description.",
+      },
+      customSanitizer: {
+        options: (value: string) => toCapitalCase(value),
       },
     },
     productQuantity: {

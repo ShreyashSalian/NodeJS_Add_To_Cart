@@ -34,6 +34,10 @@ export interface RequestWithFile extends Request {
   file?: Express.Multer.File; // Multer's file object for a single file
 }
 
+export interface CustomRequestWithFiles extends express.Request {
+  files?: Express.Multer.File[]; // Adjusted to handle multiple files
+}
+
 // Utility function to delete files if validation fails
 export const deleteFile = (file: Express.Multer.File | undefined) => {
   if (file) {
@@ -44,3 +48,54 @@ export const deleteFile = (file: Express.Multer.File | undefined) => {
 // Allowed file types and maximum size
 export const allowedMimeTypes = ["image/jpeg", "image/png"];
 export const maxSize = 2 * 1024 * 1024; // 2MB
+
+//Used to create a common function for sorting, searching and pagination
+export const buildSearchPaginationSortingPipeline = (
+  fields: string[],
+  search: string,
+  sortBy: string,
+  sortOrder: "asc" | "desc",
+  page: number,
+  limit: number
+) => {
+  const pipeline: any[] = [];
+
+  // Search stage
+  if (search) {
+    const regex = new RegExp(search, "i");
+    pipeline.push({
+      $match: {
+        $or: fields.map((field) => ({ [field]: regex })),
+      },
+    });
+  }
+
+  // Sorting stage (add only if sortBy is valid)
+  if (sortBy) {
+    pipeline.push({
+      $sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
+    });
+  }
+
+  // Pagination stages
+  pipeline.push({ $skip: (page - 1) * limit }, { $limit: limit });
+
+  return pipeline;
+};
+
+//Used to capitalize the word
+
+export const toCapitalCase = (value: string): string => {
+  if (!value) return value; // Return as is if the value is empty or null
+  return value
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ")
+    .trim();
+};
+
+//Convert the first letter to capital
+export const capitalizeFirstLetter = (value: string): string => {
+  if (!value) return value; // Return as is if the value is empty or null
+  return value.charAt(0).toUpperCase() + value.slice(1).trim();
+};
