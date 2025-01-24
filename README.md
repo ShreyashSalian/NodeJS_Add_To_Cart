@@ -1,4 +1,4 @@
-# Task management
+# Online shopping management
 
 This is typescript with nodejs project
 
