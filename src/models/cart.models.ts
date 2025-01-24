@@ -23,6 +23,9 @@ const itemSchema = new Schema<itemDocument>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
     },
+    productName: {
+      type: String,
+    },
     size: {
       type: String,
     },
@@ -32,9 +35,11 @@ const itemSchema = new Schema<itemDocument>(
     },
     actualPrice: {
       type: Number,
+      required: true,
     },
     price: {
       type: Number,
+      required: true,
     },
   },
   {
@@ -54,3 +59,4 @@ const cartSchema = new Schema<CartDocument>({
 });
 
 export const Cart = mongoose.model<CartDocument>("Cart", cartSchema);
+export const Item = mongoose.model<itemDocument>("ITem", itemSchema);

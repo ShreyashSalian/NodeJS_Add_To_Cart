@@ -350,7 +350,7 @@ export const listAllProducts = asyncHandler(
       sortOrder,
     } = req.body;
     //initialize the redis
-    console.log(req.body);
+
     const client = new Redis();
     //Convert query parameters to proper types
     const currentPage = parseInt(page as string, 10) || 10;
@@ -364,9 +364,12 @@ export const listAllProducts = asyncHandler(
     //Check redis cache
     const cacheData = await client.get(cacheKey);
     if (cacheData) {
+      console.log(res.__("productList"));
+      console.log("Cache");
       return res.status(200).json({
         status: 200,
-        message: "Project fetched from cache.",
+        sent: res.__("productList"),
+        message: "product list using cache",
         data: JSON.parse(cacheData),
         error: null,
       });
@@ -429,7 +432,8 @@ export const listAllProducts = asyncHandler(
     await client.set(cacheKey, JSON.stringify(responeData), "EX", 30); //For 30 seconds
     return res.status(200).json({
       status: 200,
-      message: "The list of products",
+      sent: res.__("productList"),
+      message: "Product list", // // Fetch the translated message
       data: responeData,
       error: null,
     });
