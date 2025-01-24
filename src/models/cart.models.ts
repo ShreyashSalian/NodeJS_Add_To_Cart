@@ -13,7 +13,7 @@ export interface itemDocument extends Document {
 export interface CartDocument extends Document {
   _id: string;
   uniqueId: string;
-  items: [itemDocument];
+  items: itemDocument[]; /// Updated to allow an empty array or multiple items
   bill: number;
 }
 

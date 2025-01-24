@@ -6,7 +6,6 @@ import {
   CustomRequestWithFiles,
 } from "../utils/fuction";
 import fs from "fs";
-import { CollationOptions } from "mongodb";
 import path from "path";
 import Redis from "ioredis";
 //POST => Used to add the new product

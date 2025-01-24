@@ -4,6 +4,8 @@ import authRoutes from "./auth.routes";
 import categoryRoutes from "./category.routes";
 import productRoutes from "./product.routes";
 import cartRoutes from "./cart.routes";
+import customerAddressRoutes from "./customerAddress.routes";
+import orderRoutes from "./order.Routes";
 
 const indexRoutes = express.Router();
 indexRoutes.use("/api/v1/users", userRoutes);
@@ -11,6 +13,8 @@ indexRoutes.use("/api/v1/auth", authRoutes);
 indexRoutes.use("/api/v1/categories", categoryRoutes);
 indexRoutes.use("/api/v1/products", productRoutes);
 indexRoutes.use("/api/v1/carts", cartRoutes);
+indexRoutes.use("/api/v1/customer-address", customerAddressRoutes);
+indexRoutes.use("/api/v1/orders", orderRoutes);
 
 indexRoutes.get(
   "/api/v1",
