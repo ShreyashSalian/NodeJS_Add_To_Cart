@@ -237,3 +237,77 @@ export const getAllOrderOfCustomer = asyncHandler(
     });
   }
 );
+
+//POST => Used to update the order status
+export const updateOrderStatus = asyncHandler(
+  async (req: express.Request, res: express.Response) => {
+    const { orderId } = req.params;
+    const { orderStatus } = req.body;
+    const orderFound = await Order.findById(orderId);
+    if (!orderFound) {
+      return res.status(404).json({
+        status: 404,
+        message: null,
+        data: null,
+        error: "Sorry, no order found.",
+      });
+    }
+    const orderStatusDetail = await Order.findByIdAndUpdate(orderId, {
+      $set: {
+        orderStatus,
+      },
+    });
+    if (orderStatusDetail) {
+      return res.status(200).json({
+        status: 200,
+        message: `Order Status has been updated to : ${orderStatus}`,
+        data: null,
+        error: null,
+      });
+    } else {
+      return res.status(400).json({
+        status: 400,
+        message: null,
+        data: null,
+        error: "Sorry, the order status can not be updated.",
+      });
+    }
+  }
+);
+
+//POST => Used to update the payment status
+export const updatePaymentStatus = asyncHandler(
+  async (req: express.Request, res: express.Response) => {
+    const { orderId } = req.params;
+    const { paymentStatus } = req.body;
+    const orderFound = await Order.findById(orderId);
+    if (!orderFound) {
+      return res.status(404).json({
+        status: 404,
+        message: null,
+        data: null,
+        error: "Sorry, no order found.",
+      });
+    }
+    const paymentStatusDetail = await Order.findByIdAndUpdate(orderId, {
+      $set: {
+        paymentStatus,
+      },
+    });
+    if (paymentStatusDetail) {
+      return res.status(200).json({
+        status: 200,
+        message: `Payment Status has been updated to : ${paymentStatus}`,
+        data: null,
+        error: null,
+      });
+    } else {
+      return res.status(400).json({
+        status: 400,
+        message: null,
+        data: null,
+        error: "Sorry, the payment status can not be updated.",
+      });
+    }
+  }
+);

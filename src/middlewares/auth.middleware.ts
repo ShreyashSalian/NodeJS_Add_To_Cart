@@ -80,3 +80,47 @@ export const verifyUser = asyncHandler(
     }
   }
 );
+//Middleware to check whether user is admin
+export const AdminUser = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Ensure req.user is defined
+      if (!req.user?.userId) {
+        return res.status(401).json({
+          status: 401,
+          message: "Unauthorized request. User information is missing.",
+          data: null,
+          error: null,
+        });
+      }
+
+      // Fetch user details
+      const user = await User.findById(req.user?.userId);
+      if (!user) {
+        return res.status(404).json({
+          status: 404,
+          message: "User not found.",
+          data: null,
+          error: null,
+        });
+      }
+      if (user?.role === "admin") {
+        next();
+      } else {
+        return res.status(401).json({
+          status: 401,
+          message: null,
+          data: null,
+          error: "Unauthorized request. Sorry you are not allowed to this.",
+        });
+      }
+    } catch (err) {
+      return res.status(500).json({
+        status: 500,
+        data: null,
+        message: null,
+        error: "Internal server error.",
+      });
+    }
+  }
+);
