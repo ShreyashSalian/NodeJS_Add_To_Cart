@@ -19,7 +19,7 @@ export interface ProductDocument extends Document {
   defaultPrice?: number; //Only required if product size is empty
   productCategory: Types.ObjectId;
   averageRating: number;
-  ratingCount: number;
+  totalRating: number;
   isDeleted: Boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -87,7 +87,7 @@ const productSchema = new Schema<ProductDocument>(
       type: Number,
       default: 0,
     },
-    ratingCount: {
+    totalRating: {
       type: Number,
       default: 0,
     },
