@@ -4,9 +4,10 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 import connectDB from "./database/connect";
-
 import indexRoutes from "./routes/index.routes";
 import i18n from "./i18n";
+import { swaggersDocuments } from "./utils/swagger";
+import swaggerUI from "swagger-ui-express";
 dotnev.config();
 
 const app = express();
@@ -42,3 +43,4 @@ connectDB()
   });
 
 app.use(indexRoutes);
+app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(swaggersDocuments));
