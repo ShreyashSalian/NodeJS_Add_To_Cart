@@ -1,18 +1,24 @@
 import express from "express";
 import { Product } from "../models/product.model";
 import {
+  AddProductBody,
   asyncHandler,
   buildSearchPaginationSortingPipeline,
   CustomRequestWithFiles,
   executePaginationAggregation,
+  ReturnResponseBody,
 } from "../utils/fuction";
 import fs from "fs";
 import path from "path";
 import Redis from "ioredis";
 import mongoose from "mongoose";
+
 //POST => Used to add the new product
 export const addNewProduct = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, AddProductBody>,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const customReq = req as CustomRequestWithFiles;
     const {
       productName,
@@ -63,7 +69,7 @@ export const updateProductDetails = asyncHandler(
     req: express.Request,
     res: express.Response
   ): Promise<express.Response> => {
-    const { productId } = req.params;
+    const { productId } = req.params; // Correctly typed
     const {
       productName,
       productDescription,
@@ -85,7 +91,6 @@ export const updateProductDetails = asyncHandler(
 
     let parsedProductSize;
     try {
-      // Check if productSize is a string and parse it, otherwise use it as is
       parsedProductSize =
         typeof productSize === "string" ? JSON.parse(productSize) : productSize;
     } catch (error) {
@@ -98,7 +103,6 @@ export const updateProductDetails = asyncHandler(
       });
     }
 
-    // Update the product details
     const productUpdate = await Product.findByIdAndUpdate(
       productId,
       {
@@ -138,7 +142,7 @@ export const updateProductDetails = asyncHandler(
 export const updateProductStatus = asyncHandler(
   async (
     req: express.Request,
-    res: express.Response
+    res: express.Response<ReturnResponseBody>
   ): Promise<express.Response> => {
     const { productId } = req.params;
     const productFound = await Product.findById(productId);
@@ -175,7 +179,10 @@ export const updateProductStatus = asyncHandler(
 
 //DELETE => Used to delete the product
 export const deleteProduct = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { productId } = req.params;
     const productFound = await Product.findById(productId);
     if (!productFound) {

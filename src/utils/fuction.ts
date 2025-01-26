@@ -129,3 +129,121 @@ export const executePaginationAggregation = async (
     throw new Error(`Error in aggregation: ${error.message}`);
   }
 };
+
+export interface IUserRequest extends express.Request {
+  user?: {
+    userId: string;
+  };
+}
+//Inteface for auth controller
+export interface LoginRequestBody {
+  emailOrContactNumber: string;
+  password: string;
+}
+
+export interface ChangePasswordBody {
+  oldPassword: string;
+  newPassword: string;
+}
+
+export interface ForgotPasswordBody {
+  email: string;
+}
+
+export interface ReturnResponseBody {
+  status: number;
+  message: string | null;
+  data: any | null | {};
+  error: string | null;
+}
+
+export interface ResetPasswordBody {
+  token: string;
+  password: string;
+}
+
+//--Interface for AddToCart Controller------------------------
+export interface AddItemToCartBody {
+  productId: string;
+  quantity: number;
+  size: string;
+  uniqueId: string;
+}
+
+export interface DeleteItemFromCartBody {
+  productId: string;
+  uniqueId: string;
+}
+
+export interface UpdateItemQuantityBody {
+  productId: string;
+  uniqueId: string;
+  quantity: number;
+}
+
+export interface AddProductBody {
+  productName: string;
+  productDescription: string;
+  productQuantity: number; // Should be a number
+  productSize:
+    | string
+    | Array<{ size: string; price: number; quantity: number }>; // Can be a string (JSON) or parsed array
+  defaultPrice: number; // Should be a number
+  productCategory: string;
+}
+
+export interface UpdateProductParams {
+  productId: string | null;
+}
+
+export interface GetAllOrderBody {
+  search: string | null;
+  page: number | string;
+  limit: number | string;
+  sortField: string | null;
+  sortOrder: string | null;
+}
+
+export interface CustomerAddressBody {
+  addressLine1: string;
+  addressLine2: string | null;
+  landMark: string | null;
+  specialInstruction: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  addressType: string;
+}
+
+export interface UpdateRatingBody {
+  productId: string;
+  rating: number;
+}
+
+export interface DeleteRatingBody {
+  productId: string;
+}
+
+export interface ReturnRatingBody {
+  status: number;
+  message: string | null;
+  data:
+    | {
+        averageRating: number;
+        totalRatings: number;
+      }
+    | any
+    | null
+    | {};
+  error: string | null;
+}
+
+export interface CategoryBody {
+  categoryName: string;
+  categoryDescription: string;
+  categorySlug: string;
+  keywords: string[];
+  status: string;
+  isFeatured: boolean;
+}

@@ -1,10 +1,17 @@
 import express from "express";
-import { asyncHandler } from "../utils/fuction";
+import {
+  asyncHandler,
+  CustomerAddressBody,
+  ReturnResponseBody,
+} from "../utils/fuction";
 import { CustomAddress } from "../models/customerAddress.model";
 
 //POST => Used to add the address of the customer
 export const addCustomerAddress = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, CustomerAddressBody>,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const {
       addressLine1,
       addressLine2,
@@ -48,7 +55,10 @@ export const addCustomerAddress = asyncHandler(
 
 //PUT=> Used to update the customer address details
 export const updateAddress = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, CustomerAddressBody>,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const {
       addressLine1,
       addressLine2,
@@ -99,7 +109,10 @@ export const updateAddress = asyncHandler(
 
 //GET => Used to get the customer detail
 export const getCustomerAddress = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const customerAddress = await CustomAddress.findOne({
       user: req.user?.userId,
     });

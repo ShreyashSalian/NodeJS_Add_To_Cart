@@ -1,5 +1,5 @@
 import express from "express";
-import { asyncHandler } from "../utils/fuction";
+import { asyncHandler, ReturnResponseBody } from "../utils/fuction";
 import Stripe from "stripe";
 import dotenv from "dotenv";
 import Payment from "../models/payment.model";
@@ -8,7 +8,10 @@ dotenv.config();
 //POST => Used to add the payment
 
 export const addPayment = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const stripeSecret = process.env.STRIPE_SECRET;
     if (!stripeSecret) {
       return res.status(500).json({
@@ -55,14 +58,14 @@ export const addPayment = asyncHandler(
         customer: req.user?.userId, // Assuming the user is authenticated
       });
       console.log("Payment data saved successfully.");
-      res.status(200).json({
+      return res.status(200).json({
         message: "Payment made successfully.",
         error: null,
         data: { clientSecret: paymentIntent.client_secret },
         status: 200,
       });
     } else {
-      res.status(500).json({
+      return res.status(500).json({
         message: null,
         error: "Payment failed or requires additional actions.",
         data: null,

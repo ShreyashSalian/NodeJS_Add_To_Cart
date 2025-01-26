@@ -1,6 +1,14 @@
 import express from "express";
 import { User } from "../models/user.model";
-import { asyncHandler } from "../utils/fuction";
+import {
+  asyncHandler,
+  ChangePasswordBody,
+  IUserRequest,
+  LoginRequestBody,
+  ForgotPasswordBody,
+  ReturnResponseBody,
+  ResetPasswordBody,
+} from "../utils/fuction";
 import { Login } from "../models/login.model";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import crypto from "crypto";
@@ -20,7 +28,10 @@ const generateRefreshAndAccessToken = async (
 
 //POST => Allow the user to login
 export const login = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, LoginRequestBody>,
+    res: express.Response
+  ): Promise<express.Response> => {
     const { emailOrContactNumber, password } = req.body;
     const userFound = await User.findOne({
       $or: [
@@ -106,53 +117,67 @@ export const login = asyncHandler(
 
 //GET => Allow the user to logout.
 export const logout = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: IUserRequest,
+    res: express.Response
+  ): Promise<express.Response> => {
     if (!req.user?.userId) {
-      const responsePayLoad = {
+      const responsePayload = {
         status: 200,
         message: null,
         data: null,
         error: "Invalid or missing user_id in request",
       };
-      res.status(200).json(responsePayLoad);
+      return res.status(200).json(responsePayload);
     }
+
+    // Delete user session from the Login model
     const userDetail = await Login.findOneAndDelete({
-      userId: req.user?.userId,
+      userId: req.user.userId,
     });
+
     if (!userDetail) {
-      const responsePayLoad = {
+      const responsePayload = {
         status: 200,
         message: null,
         data: null,
-        error: "User can not logout.",
+        error: "User cannot logout.",
       };
-      res.status(200).json(responsePayLoad);
+      return res.status(200).json(responsePayload);
     } else {
-      const options = {
+      // Clear cookies and send a successful logout response
+      const cookieOptions = {
         httpOnly: true,
-        secure: true,
+        secure: true, // Ensure secure cookies in production
+        sameSite: "strict" as const, // Add `sameSite` for CSRF protection
       };
 
-      const responsePayLoad = {
+      const responsePayload = {
         status: 200,
-        message: "User logout successfully",
+        message: "User logged out successfully.",
         data: null,
         error: null,
       };
-      res
+
+      return res
         .status(200)
-        .clearCookie("accessToken", options)
-        .clearCookie("refreshToken", options)
-        .json(responsePayLoad);
+        .clearCookie("accessToken", cookieOptions)
+        .clearCookie("refreshToken", cookieOptions)
+        .json(responsePayload);
     }
   }
 );
 
 //POST => Generate the AccessToken
 export const generateAccessToken = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
-    const incomingRefreshToken =
+  async (
+    req: express.Request,
+    res: express.Response
+  ): Promise<express.Response> => {
+    const incomingRefreshToken: string | undefined =
       req.cookies?.refreshToken || req.body.refreshToken;
+
+    // Check if the refresh token exists
     if (!incomingRefreshToken) {
       const responsePayload = {
         status: 401,
@@ -162,72 +187,81 @@ export const generateAccessToken = asyncHandler(
       };
       return res.status(401).json(responsePayload);
     }
-    //Get the secret key
-    const secretKey = process.env.ACCESS_TOKEN;
+
+    // Get the secret key from the environment
+    const secretKey: string | undefined = process.env.ACCESS_TOKEN;
     if (!secretKey) {
       throw new Error("ACCESS_TOKEN environment variable is not set");
     }
-    //Verify the given token with the secret key from env file
-    const verifedToken = jwt.verify(
-      incomingRefreshToken,
-      secretKey
-    ) as JwtPayload;
-    //Check whether the token is correct
-    if (!verifedToken) {
+
+    // Verify the refresh token
+    let verifiedToken: JwtPayload;
+    try {
+      verifiedToken = jwt.verify(incomingRefreshToken, secretKey) as JwtPayload;
+    } catch (error) {
       const responsePayload = {
         status: 401,
         message: null,
         data: null,
-        error: "Unauthorized user.",
+        error: "Invalid or expired refresh token.",
       };
       return res.status(401).json(responsePayload);
     }
-    //Compare the user from the decoded token
-    const user = await User.findById(verifedToken?.userId);
+
+    // Validate the user ID from the decoded token
+    const user = await User.findById(verifiedToken?.userId);
     if (!user) {
       const responsePayload = {
         status: 401,
         message: null,
         data: null,
-        error: "Please enter the valid refresh token",
+        error: "User not found. Please enter a valid refresh token.",
       };
       return res.status(401).json(responsePayload);
     }
-    //Compare the token
+
+    // Compare the incoming refresh token with the one stored in the database
     if (incomingRefreshToken !== user.refreshToken) {
       const responsePayload = {
         status: 401,
         message: null,
         data: null,
-        error: "Refresh token is expired.",
+        error: "Refresh token is expired or does not match.",
       };
       return res.status(401).json(responsePayload);
     }
+
+    // Generate a new access token and refresh token
     const { accessToken, refreshToken } = await generateRefreshAndAccessToken(
-      user?._id
+      user._id
     );
+
     const options = {
       httpOnly: true,
-      secure: true,
+      secure: true, // Use HTTPS in production
     };
 
-    const responsePayLoad = {
+    const responsePayload = {
       status: 200,
       message: "Refresh token generated successfully.",
       data: { accessToken, refreshToken },
       error: null,
     };
-    res
+
+    return res
       .status(200)
       .cookie("accessToken", accessToken, options)
       .cookie("refreshToken", refreshToken, options)
-      .json(responsePayLoad);
+      .json(responsePayload);
   }
 );
 
 //POST => Allow the user to change password
 export const changePassword = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, ChangePasswordBody>,
+    res: express.Response
+  ): Promise<express.Response> => {
     const { oldPassword, newPassword } = req.body;
     //Check whether use exist or not
     const user = await User.findById(req.user?.userId);
@@ -264,7 +298,10 @@ export const changePassword = asyncHandler(
 );
 //POST => Forgot Password
 export const forgotPassword = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, ForgotPasswordBody>,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { email } = req.body;
     const userFound = await User.findOne({ email: email });
     if (!userFound) {
@@ -299,8 +336,11 @@ export const forgotPassword = asyncHandler(
 
 //POST => Reset password
 export const resetPassword = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
-    const { token, password } = req.body;
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
+    const { token, password }: { token: string; password: string } = req.body;
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordTokenExpiry: { $gt: Date.now() },
@@ -331,8 +371,11 @@ export const resetPassword = asyncHandler(
 
 //POST => Email verification
 export const userEmailVerification = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
-    const { token } = req.body;
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
+    const { token }: { token: string } = req.body;
     const user = await User.findOne({ emailVerificationToken: token });
     if (!user) {
       return res.status(200).json({

@@ -1,11 +1,20 @@
 import express from "express";
-import { asyncHandler } from "../utils/fuction";
+import {
+  asyncHandler,
+  DeleteRatingBody,
+  ReturnRatingBody,
+  ReturnResponseBody,
+  UpdateRatingBody,
+} from "../utils/fuction";
 import { Product } from "../models/product.model";
 import { Rating } from "../models/rating.model";
 
 //POST=> Used to add or update the rating
 export const addOrUpdateRating = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, UpdateRatingBody>,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { productId, rating } = req.body;
     const userId = req.user?.userId;
     //Check if the product exist
@@ -24,7 +33,7 @@ export const addOrUpdateRating = asyncHandler(
       //Update the existing rating
       existingRating.rating = rating;
       await existingRating.save();
-      res.status(200).json({
+      return res.status(200).json({
         message: "Rating updated successfully",
         status: 200,
         error: null,
@@ -33,12 +42,6 @@ export const addOrUpdateRating = asyncHandler(
     } else {
       //Add new rating
       await Rating.create({ productId, userId, rating });
-      res.status(200).json({
-        message: "Rating added successfully",
-        status: 200,
-        error: null,
-        data: null,
-      });
     }
     //Recalculate and update the product's average rating
     const allRatings = await Rating.find({ productId });
@@ -48,12 +51,21 @@ export const addOrUpdateRating = asyncHandler(
     product.averageRating = averageRating;
     product.totalRating = totalRating;
     await product.save();
+    return res.status(200).json({
+      message: "Rating added successfully",
+      status: 200,
+      error: null,
+      data: null,
+    });
   }
 );
 
 //POST => Used to delete the rating
 export const deleteRating = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, DeleteRatingBody>,
+    res: express.Response<ReturnRatingBody>
+  ): Promise<express.Response> => {
     const { productId } = req.body;
     const userId = req.user?.userId;
     //Check if the product exists
@@ -86,13 +98,15 @@ export const deleteRating = asyncHandler(
     product.averageRating = averageRating;
     product.totalRating = totalRating;
     await product.save();
-    res.status(200).json({
+    const data = {
+      averageRating: product.averageRating,
+      totalRatings: product.totalRating,
+    };
+    return res.status(200).json({
       status: 200,
       message: "Rating deleted successfully",
-      data: {
-        averageRating: product.averageRating,
-        totalRatings: product.totalRating,
-      },
+      data: data,
+      error: null,
     });
   }
 );

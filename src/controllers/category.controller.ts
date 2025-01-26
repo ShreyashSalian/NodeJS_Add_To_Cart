@@ -1,5 +1,10 @@
 import express from "express";
-import { asyncHandler, RequestWithFile } from "../utils/fuction";
+import {
+  asyncHandler,
+  CategoryBody,
+  RequestWithFile,
+  ReturnResponseBody,
+} from "../utils/fuction";
 import { Category } from "../models/category.model";
 import path from "path";
 import fs from "fs";
@@ -7,7 +12,10 @@ import { error } from "console";
 
 //POST => Used to create a new category
 export const addNewCategory = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const customReq = req as RequestWithFile;
     const {
       categoryName,
@@ -16,6 +24,13 @@ export const addNewCategory = asyncHandler(
       keywords,
       status,
       isFeatured,
+    }: {
+      categoryName: string;
+      categoryDescription: string;
+      categorySlug: string;
+      keywords: string[];
+      status: string;
+      isFeatured: boolean;
     } = customReq.body;
 
     const categoryImage = customReq?.file?.filename || "";
@@ -48,7 +63,10 @@ export const addNewCategory = asyncHandler(
 
 //PUT => Used to update the category details
 export const updateCategory = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { categoryId } = req.params;
     const {
       categoryName,
@@ -57,6 +75,13 @@ export const updateCategory = asyncHandler(
       keywords,
       status,
       isFeatured,
+    }: {
+      categoryName: string;
+      categoryDescription: string;
+      categorySlug: string;
+      keywords: string[];
+      status: string;
+      isFeatured: boolean;
     } = req.body;
 
     const updateCategoryDetails = await Category.findByIdAndUpdate(
@@ -95,7 +120,10 @@ export const updateCategory = asyncHandler(
 
 //POST => Used to soft delete the category
 export const softDeleteCategory = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { categoryId } = req.params;
     const categoryFound = await Category.findById(categoryId);
     if (!categoryFound) {
@@ -132,7 +160,10 @@ export const softDeleteCategory = asyncHandler(
 
 //DELETE => Used to delete the category
 export const deleteCategory = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { categoryID } = req.params;
     const categoryFound = await Category.findById(categoryID);
     if (!categoryFound) {
@@ -143,12 +174,31 @@ export const deleteCategory = asyncHandler(
         error: "Sorry, no category found with given ID",
       });
     }
+    const deleteCategory = await Category.findByIdAndDelete(categoryID);
+    if (deleteCategory) {
+      return res.status(200).json({
+        status: 200,
+        message: "Category deleted successfully.",
+        data: null,
+        error: null,
+      });
+    } else {
+      return res.status(400).json({
+        status: 400,
+        message: null,
+        data: null,
+        error: "Sorry, the category can not be deleted.",
+      });
+    }
   }
 );
 
 //GET => List all Category
 export const listAllCategory = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const allCategory = await Category.find({ isDeleted: false });
     if (allCategory.length === 0) {
       return res.status(404).json({
@@ -170,7 +220,10 @@ export const listAllCategory = asyncHandler(
 
 //POST => used to delete or update the category image
 export const updateOrDeleteCategoryImage = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { categoryId } = req.params;
     const customReq = req as RequestWithFile;
 
