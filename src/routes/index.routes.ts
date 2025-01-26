@@ -9,6 +9,7 @@ import cartRoutes from "./cart.routes";
 import customerAddressRoutes from "./customerAddress.routes";
 import orderRoutes from "./order.Routes";
 import paymentRoutes from "./payment.routes";
+import ratingRoutes from "./rating.routes";
 
 const indexRoutes = express.Router();
 indexRoutes.use("/api/v1/users", userRoutes);
@@ -19,6 +20,7 @@ indexRoutes.use("/api/v1/carts", cartRoutes);
 indexRoutes.use("/api/v1/customer-address", customerAddressRoutes);
 indexRoutes.use("/api/v1/orders", orderRoutes);
 indexRoutes.use("/api/v1/payments", paymentRoutes);
+indexRoutes.use("/api/v1/rating", ratingRoutes);
 // indexRoutes.rend("/api/v1/payment",(req: express.Request, res: express.Response) =>{
 //   publishableKey: process.env.STRIPE_SECRET,
 // });

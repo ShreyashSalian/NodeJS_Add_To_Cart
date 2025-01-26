@@ -4,10 +4,12 @@ import {
   asyncHandler,
   buildSearchPaginationSortingPipeline,
   CustomRequestWithFiles,
+  executePaginationAggregation,
 } from "../utils/fuction";
 import fs from "fs";
 import path from "path";
 import Redis from "ioredis";
+import mongoose from "mongoose";
 //POST => Used to add the new product
 export const addNewProduct = asyncHandler(
   async (req: express.Request, res: express.Response) => {
@@ -348,34 +350,35 @@ export const listAllProducts = asyncHandler(
       sortField = "",
       sortOrder,
     } = req.body;
-    //initialize the redis
 
-    const client = new Redis();
-    //Convert query parameters to proper types
-    const currentPage = parseInt(page as string, 10) || 10;
+    const client = new Redis(); // Ideally, move this to a shared utility to reuse across controllers
+
+    // Convert query parameters to proper types
+    const currentPage = parseInt(page as string, 10) || 1;
     const pageSize = parseInt(limit as string, 10) || 10;
 
-    //Generate unique cache key
+    // Generate a unique cache key
     const cacheKey = `products_${JSON.stringify(
       search
     )}_${currentPage}_${pageSize}_${sortField}_${sortOrder}`;
 
-    //Check redis cache
+    // Check Redis cache
     const cacheData = await client.get(cacheKey);
     if (cacheData) {
-      console.log(res.__("productList"));
-      console.log("Cache");
+      console.log("Cache hit");
       return res.status(200).json({
         status: 200,
         sent: res.__("productList"),
-        message: "product list using cache",
+        message: "Product list fetched from cache",
         data: JSON.parse(cacheData),
         error: null,
       });
     }
-    //Define searchable fields
+
+    // Define searchable fields
     const searchFields = ["productName", "productDescription", "ratingCount"];
-    //Build the aggregation pipeline
+
+    // Build the aggregation pipeline
     const pipeline = [
       {
         $lookup: {
@@ -400,41 +403,104 @@ export const listAllProducts = asyncHandler(
         pageSize
       ),
     ];
-    //Execute the pipeline
 
-    const productDetails = await Product.aggregate(pipeline);
-    //Get total count for pagination
-    const totalCountPipeline = pipeline.filter(
-      (stage) => !("$skip" in stage || "$limit" in stage)
+    // Execute the common function
+    const { results, totalCount } = await executePaginationAggregation(
+      Product,
+      pipeline
     );
-    const totalCount = await Product.aggregate([
-      ...totalCountPipeline,
-      { $count: "totalCount" },
-    ]);
-    const totalProducts = totalCount.length > 0 ? totalCount[0].totalCount : 0;
-    if (productDetails.length === 0) {
+
+    if (results.length === 0) {
       return res.status(200).json({
         status: 200,
-        message: "No project has been created.",
-        data: { products: [], totalProducts, totalPages: 0, currentPage },
+        message: "No products found.",
+        data: { products: [], totalCount, totalPages: 0, currentPage },
         error: null,
       });
     }
-    //If the project length is greater than zero
-    const responeData = {
-      projects: productDetails,
-      totalProducts,
-      totalPages: Math.ceil(totalProducts / pageSize),
+
+    // Prepare response data
+    const responseData = {
+      products: results,
+      totalCount,
+      totalPages: Math.ceil(totalCount / pageSize),
       currentPage,
     };
-    //Cachen data in redis
-    await client.set(cacheKey, JSON.stringify(responeData), "EX", 30); //For 30 seconds
+
+    // Cache the data in Redis
+    await client.set(cacheKey, JSON.stringify(responseData), "EX", 30); // Cache for 30 seconds
+
     return res.status(200).json({
       status: 200,
       sent: res.__("productList"),
-      message: "Product list", // // Fetch the translated message
-      data: responeData,
+      message: "Product list",
+      data: responseData,
       error: null,
     });
+  }
+);
+
+//POST => list all product based on the given category id
+export const listProductsById = asyncHandler(
+  async (req: express.Request, res: express.Response) => {
+    const { categoryIds } = req.body;
+    if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+      return res.status(400).json({
+        status: 400,
+        message: "Invalid input. Please provide an array of category IDs.",
+        data: null,
+        error: "Invalid category IDs.",
+      });
+    }
+    try {
+      const products = await Product.aggregate([
+        {
+          $match: {
+            productCategory: {
+              $in: categoryIds.map((id) => new mongoose.Types.ObjectId(id)),
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "productCategory",
+            foreignField: "_id",
+            as: "categoryDetails",
+          },
+        },
+        {
+          $unwind: "$categoryDetails",
+        },
+        {
+          $project: {
+            "categoryDetails.name": 1, // Include only relevant fields from categoryDetails
+            "categoryDetails.description": 1,
+          },
+        },
+      ]);
+      if (products.length === 0) {
+        return res.status(404).json({
+          status: 404,
+          message: null,
+          data: null,
+          error: "No products found for the given category IDs.",
+        });
+      } else {
+        return res.status(200).json({
+          status: 200,
+          message: "Products with category details retrieved successfully",
+          data: products,
+          error: null,
+        });
+      }
+    } catch (err: any) {
+      return res.status(400).json({
+        status: 400,
+        message: "Invalid input. Please provide an array of category IDs.",
+        data: null,
+        error: "Invalid category IDs.",
+      });
+    }
   }
 );
