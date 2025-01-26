@@ -7,6 +7,7 @@ import {
   CustomRequestWithFiles,
   executePaginationAggregation,
   ReturnResponseBody,
+  UpdateProductParams,
 } from "../utils/fuction";
 import fs from "fs";
 import path from "path";
@@ -16,7 +17,7 @@ import mongoose from "mongoose";
 //POST => Used to add the new product
 export const addNewProduct = asyncHandler(
   async (
-    req: express.Request<{}, {}, AddProductBody>,
+    req: express.Request,
     res: express.Response<ReturnResponseBody>
   ): Promise<express.Response> => {
     const customReq = req as CustomRequestWithFiles;
@@ -27,24 +28,62 @@ export const addNewProduct = asyncHandler(
       productSize,
       defaultPrice,
       productCategory,
+    }: {
+      productName: string;
+      productDescription: string;
+      productQuantity: number; // Should be a number
+      productSize:
+        | string
+        | Array<{ size: string; price: number; quantity: number }>; // Can be a string (JSON) or parsed array
+      defaultPrice: number; // Should be a number
+      productCategory: string;
     } = customReq.body;
-
     // Handle file uploads
-    // Handle file uploads
-    let productImageList: string[] | null =
+    const productImageList: string[] | null =
       customReq.files && Array.isArray(customReq.files)
         ? customReq.files.map((file) => file.filename)
         : null;
 
+    // Handle `productSize`
+    let parsedProductSize: Array<{
+      size: string;
+      price: number;
+      quantity: number;
+    }> = [];
+    if (typeof productSize === "string") {
+      try {
+        parsedProductSize = JSON.parse(productSize); // Parse if it's a string
+      } catch (error) {
+        return res.status(400).json({
+          status: 400,
+          message: null,
+          data: null,
+          error:
+            "Invalid format for productSize. Ensure it's a valid JSON array.",
+        });
+      }
+    } else if (Array.isArray(productSize)) {
+      parsedProductSize = productSize; // Use as is if it's already an array
+    } else {
+      return res.status(400).json({
+        status: 400,
+        message: null,
+        data: null,
+        error: "Invalid type for productSize. Expected a JSON string or array.",
+      });
+    }
+
+    // Create the new product
     const newProduct = await Product.create({
       productName,
       productDescription,
       productQuantity,
-      productSize: productSize ? JSON.parse(productSize) : [],
-      defaultPrice: defaultPrice ? defaultPrice : undefined,
+      productSize: parsedProductSize,
+      defaultPrice: defaultPrice || undefined,
       productCategory,
       productImages: productImageList,
     });
+
     if (newProduct) {
       return res.status(200).json({
         status: 200,
@@ -66,10 +105,10 @@ export const addNewProduct = asyncHandler(
 //PUT => Used to update the details of the product
 export const updateProductDetails = asyncHandler(
   async (
-    req: express.Request,
-    res: express.Response
-  ): Promise<express.Response> => {
-    const { productId } = req.params; // Correctly typed
+    req: express.Request<{ productId: string }, {}, AddProductBody, {}>,
+    res: express.Response<ReturnResponseBody>
+  ) => {
+    const productId = req.params.productId; // Correctly typed
     const {
       productName,
       productDescription,
@@ -89,20 +128,38 @@ export const updateProductDetails = asyncHandler(
       });
     }
 
-    let parsedProductSize;
-    try {
-      parsedProductSize =
-        typeof productSize === "string" ? JSON.parse(productSize) : productSize;
-    } catch (error) {
+    // Initialize the parsedProductSize variable
+    let parsedProductSize: Array<{
+      size: string;
+      price: number;
+      quantity: number;
+    }> = [];
+
+    // Check the type of productSize before processing
+    if (typeof productSize === "string") {
+      try {
+        parsedProductSize = JSON.parse(productSize); // Parse if it's a JSON string
+      } catch (error) {
+        return res.status(400).json({
+          status: 400,
+          message: null,
+          data: null,
+          error:
+            "Invalid format for productSize. Ensure it's a valid JSON array.",
+        });
+      }
+    } else if (Array.isArray(productSize)) {
+      parsedProductSize = productSize; // Use directly if it's already an array
+    } else {
       return res.status(400).json({
         status: 400,
         message: null,
         data: null,
-        error:
-          "Invalid format for productSize. Ensure it's a valid JSON array.",
+        error: "Invalid type for productSize. Expected a JSON string or array.",
       });
     }
 
+    // Update the product details
     const productUpdate = await Product.findByIdAndUpdate(
       productId,
       {
@@ -110,7 +167,7 @@ export const updateProductDetails = asyncHandler(
           productName,
           productDescription,
           productQuantity,
-          productSize: parsedProductSize || [],
+          productSize: parsedProductSize,
           defaultPrice: defaultPrice || undefined,
           productCategory,
         },
@@ -138,52 +195,13 @@ export const updateProductDetails = asyncHandler(
   }
 );
 
-//POST => Used to update the status of the product
-export const updateProductStatus = asyncHandler(
-  async (
-    req: express.Request,
-    res: express.Response<ReturnResponseBody>
-  ): Promise<express.Response> => {
-    const { productId } = req.params;
-    const productFound = await Product.findById(productId);
-    if (!productFound) {
-      return res.status(404).json({
-        status: 404,
-        message: null,
-        data: null,
-        error: "Sorry, the product was not found.",
-      });
-    }
-    const updateStatus = await Product.findByIdAndUpdate(productId, {
-      $set: {
-        isDeleted: true,
-      },
-    });
-    if (!updateStatus) {
-      return res.status(500).json({
-        status: 500,
-        message: null,
-        data: null,
-        error: "Sorry, the product could not be deleted.",
-      });
-    } else {
-      return res.status(200).json({
-        status: 200,
-        message: "Product deleted successfully.",
-        data: null,
-        error: null,
-      });
-    }
-  }
-);
-
 //DELETE => Used to delete the product
 export const deleteProduct = asyncHandler(
   async (
-    req: express.Request,
+    req: express.Request<{ productId: string }>,
     res: express.Response<ReturnResponseBody>
   ): Promise<express.Response> => {
-    const { productId } = req.params;
+    const productId = req.params.productId;
     const productFound = await Product.findById(productId);
     if (!productFound) {
       return res.status(404).json({
@@ -214,8 +232,11 @@ export const deleteProduct = asyncHandler(
 
 //GET => Used to get the product by ID
 export const getProductByID = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
-    const { productId } = req.params;
+  async (
+    req: express.Request<{ productId: string }>,
+    res: express.Response
+  ) => {
+    const productId = req.params.productId;
     const productFound = await Product.findById(productId);
     if (!productFound) {
       return res.status(404).json({
@@ -236,9 +257,12 @@ export const getProductByID = asyncHandler(
 );
 //POST => Used to delete the multiple images of the product
 export const deleteMutipleProductImages = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
-    const { productId } = req.params;
-    const { productimagesList } = req.body;
+  async (
+    req: express.Request<{ productId: string }>,
+    res: express.Response
+  ) => {
+    const productId = req.params.productId;
+    const productimagesList = req.body.productimagesList;
     if (!Array.isArray(productimagesList) || productimagesList.length === 0) {
       return res.status(400).json({
         status: 400,
@@ -296,9 +320,6 @@ export const deleteMutipleProductImages = asyncHandler(
 );
 
 //POST => Used to update the mutiple images of the product
-export interface RequestWithFiles extends express.Request {
-  files?: Express.Multer.File[]; // Adjusted to handle multiple files
-}
 //POST => Used to upload multiple images for the product
 export const uploadMultipleProductImages = asyncHandler(
   async (
@@ -507,6 +528,44 @@ export const listProductsById = asyncHandler(
         message: "Invalid input. Please provide an array of category IDs.",
         data: null,
         error: "Invalid category IDs.",
+      });
+    }
+  }
+);
+//POST => Used to update the status of the product
+export const updateProductStatus = asyncHandler(
+  async (
+    req: express.Request<{ productId: string }>,
+    res: express.Response
+  ): Promise<express.Response> => {
+    const productId = req.params.productId;
+    const productFound = await Product.findById(productId);
+    if (!productFound) {
+      return res.status(404).json({
+        status: 404,
+        message: null,
+        data: null,
+        error: "Sorry, the product was not found.",
+      });
+    }
+    const updateStatus = await Product.findByIdAndUpdate(productId, {
+      $set: {
+        isDeleted: true,
+      },
+    });
+    if (!updateStatus) {
+      return res.status(500).json({
+        status: 500,
+        message: null,
+        data: null,
+        error: "Sorry, the product could not be deleted.",
+      });
+    } else {
+      return res.status(200).json({
+        status: 200,
+        message: "Product deleted successfully.",
+        data: null,
+        error: null,
       });
     }
   }

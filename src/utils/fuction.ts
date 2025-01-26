@@ -13,18 +13,24 @@ export const trimInput = (value: string) => {
 };
 
 //Used to created the start for the function
-export const asyncHandler =
-  (
-    fn: (
-      req: Request,
-      res: Response,
-      next: NextFunction
-    ) => Promise<Response | void>
-  ) =>
-  (req: Request, res: Response, next: NextFunction) => {
-    fn(req, res, next).catch(next);
-  };
-
+export function asyncHandler<
+  P = {}, // Params type
+  ResBody = any, // Response body type
+  ReqBody = any, // Request body type
+  ReqQuery = any // Request query type
+>(
+  fn: (
+    req: Request<P, ResBody, ReqBody, ReqQuery>,
+    res: Response<ResBody>,
+    next: NextFunction
+  ) => Promise<any>
+) {
+  return (
+    req: Request<P, ResBody, ReqBody, ReqQuery>,
+    res: Response,
+    next: NextFunction
+  ) => Promise.resolve(fn(req, res, next)).catch(next);
+}
 //This function is used to generate token for the email verification
 export const generateEmailVerificationToken = () => {
   return crypto.randomBytes(32).toString("hex");
@@ -193,7 +199,7 @@ export interface AddProductBody {
 }
 
 export interface UpdateProductParams {
-  productId: string | null;
+  productId: string;
 }
 
 export interface GetAllOrderBody {
