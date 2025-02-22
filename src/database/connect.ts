@@ -9,7 +9,8 @@ const connectDB = async (): Promise<void> => {
     // `mongodb://mongodb-container:27017/${process.env.DATABASE_NAME}`// for docker we need to include the container name
 
     const connection = await mongoose.connect(
-      `${process.env.LOCAL_PATH}/${process.env.DATABASE_NAME}`
+      // `${process.env.LOCAL_PATH}/${process.env.DATABASE_NAME}`
+      "mongodb://mongodb-container:27017/${process.env.DATABASE_NAME"
     );
     console.log(`Connected to database : ${connection.connection.host}`);
 
