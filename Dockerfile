@@ -12,4 +12,4 @@ RUN npm run build # Ensure typescript compiles to javascript
 
 EXPOSE 8000
 
-CMD [ "npm" ,"start"]
+CMD [ "npm" ,"run","dev"]

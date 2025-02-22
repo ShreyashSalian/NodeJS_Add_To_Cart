@@ -10,7 +10,7 @@ const connectDB = async (): Promise<void> => {
 
     const connection = await mongoose.connect(
       // `${process.env.LOCAL_PATH}/${process.env.DATABASE_NAME}`
-      "mongodb://mongodb-container:27017/${process.env.DATABASE_NAME"
+      `mongodb://mongodb-container:27017/${process.env.DATABASE_NAME}`
     );
     console.log(`Connected to database : ${connection.connection.host}`);
 
