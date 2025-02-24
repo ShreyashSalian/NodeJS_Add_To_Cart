@@ -26,6 +26,8 @@ app.use(express.static(path.join(path.resolve(), "public")));
 app.use("/images", express.static("public/images"));
 app.use(cookieParser());
 app.use(i18n.init);
+app.set("view engine", "pug"); // Set HBS as the view engine
+app.set("views", "./src/views");
 // app.use((req, res, next) => {
 //   console.log("Locale:", req.getLocale()); // Should log the current locale (e.g., 'en')
 //   console.log("res.__ exists:", typeof res.__ === "function"); // Should log `true`

@@ -1,0 +1,53 @@
+doctype html
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    title Payment Form
+    script(src="https://js.stripe.com/v3/")  // Stripe.js
+
+  body
+    h1 Payment Form
+
+    form(id="payment-form")
+      div#card-element   // Stripe's Card element
+      button(type="submit") Pay Now
+
+    script.
+      const stripe = Stripe('#{publishableKey}'); // Inject the publishable key dynamically from backend
+      const elements = stripe.elements();
+      const card = elements.create('card');
+      card.mount('#card-element');
+
+      // Handle the form submission
+      document.getElementById('payment-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // Get the client secret from the backend
+        const response = await fetch('/create-payment-intent', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: 1000,  // Amount in cents (1000 = $10)
+            currency: 'inr',  // Currency code (INR in this case)
+          }),
+        });
+
+        const { clientSecret } = await response.json();
+
+        // Confirm the payment with the client secret
+        const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: card,
+          },
+        });
+
+        if (error) {
+          console.error("Payment failed:", error.message);
+          alert("Payment failed: " + error.message);
+        } else if (paymentIntent.status === 'succeeded') {
+          console.log("Payment successful!");
+          alert("Payment successful!");
+        }
+      });

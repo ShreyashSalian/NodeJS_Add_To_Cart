@@ -1,6 +1,12 @@
 import express from "express";
 import { Cart, Item } from "../models/cart.models";
-import { asyncHandler } from "../utils/fuction";
+import {
+  asyncHandler,
+  AddItemToCartBody,
+  ReturnResponseBody,
+  DeleteItemFromCartBody,
+  UpdateItemQuantityBody,
+} from "../utils/fuction";
 import { v4 as uuidv4 } from "uuid";
 import { Product } from "../models/product.model";
 import mongoose, { mongo } from "mongoose";
@@ -8,7 +14,10 @@ import mongoose, { mongo } from "mongoose";
 //POST => Used to add the product to the cart
 
 export const addItemToCart = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, AddItemToCartBody>,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { productId, quantity, size, uniqueId } = req.body;
 
     // Validate request data
@@ -158,8 +167,13 @@ export const addItemToCart = asyncHandler(
 
 //POST => Used to delete the item from the cart
 export const deleteItemFromCart = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, DeleteItemFromCartBody>,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { productId, uniqueId } = req.body;
+
+    // Check if the product exists
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({
@@ -169,19 +183,28 @@ export const deleteItemFromCart = asyncHandler(
         error: "No product found",
       });
     }
+
+    // Find the cart by uniqueId
     const cart = await Cart.findOne({ uniqueId: uniqueId });
     if (cart) {
+      // Find the index of the product in the cart
       const cartIndex = cart.items.findIndex((item) => {
         return item.productId.equals(new mongoose.Types.ObjectId(productId));
       });
+
+      // If the product is found in the cart
       if (cartIndex > -1) {
         let productItem = cart.items[cartIndex];
 
+        // Update the cart bill
         cart.bill -= productItem.quantity * productItem.actualPrice;
         if (cart.bill < 0) {
           cart.bill = 0;
         }
+
+        // Remove the item from the cart
         cart.items.splice(cartIndex, 1);
+
         // Update stock for the product
         if (productItem.size) {
           const sizeItem = product.productSize.find(
@@ -193,18 +216,31 @@ export const deleteItemFromCart = asyncHandler(
         } else if (product.productQuantity !== undefined) {
           product.productQuantity += productItem.quantity;
         }
+
+        // Save the updated product and cart
         await product.save();
         await cart.save();
+
+        // Return success response
         return res.status(200).json({
           status: 200,
           message: "Item deleted from the cart",
           data: cart,
           error: null,
         });
+      } else {
+        // If the product is not found in the cart
+        return res.status(404).json({
+          status: 404,
+          message: "Product not found in the cart",
+          data: null,
+          error: null,
+        });
       }
     } else {
-      return res.status(200).json({
-        status: 200,
+      // If the cart is not found
+      return res.status(404).json({
+        status: 404,
         message: "The cart is empty",
         data: null,
         error: null,
@@ -215,7 +251,10 @@ export const deleteItemFromCart = asyncHandler(
 
 //POST => Used to update the quantity of the product from the cart.
 export const updateItemQuantity = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, UpdateItemQuantityBody>,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { productId, quantity, uniqueId } = req.body;
     //Find the product by productID
     const product = await Product.findById(productId);
@@ -317,8 +356,11 @@ export const updateItemQuantity = asyncHandler(
 
 //POST => Used to get the items from the cart of the given users
 export const getItemsFromCart = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
-    const { uniqueId } = req.body;
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
+    const { uniqueId }: { uniqueId: string } = req.body;
     const cart = await Cart.findOne({ uniqueId: uniqueId });
     if (cart && cart.items.length > 0) {
       const responsePayload = {

@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import {
   asyncHandler,
   buildSearchPaginationSortingPipeline,
+  ReturnResponseBody,
+  GetAllOrderBody,
 } from "../utils/fuction";
 import { Cart } from "../models/cart.models";
 import { Order } from "../models/order.model";
@@ -13,8 +15,11 @@ import Redis from "ioredis";
 
 //POST => Used to add the order
 export const placeOrder = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
-    const { uniqueId } = req.body;
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
+    const { uniqueId }: { uniqueId: string } = req.body;
     if (!req.user?.userId) {
       return res.status(401).json({
         status: 401,
@@ -92,7 +97,10 @@ export const placeOrder = asyncHandler(
 
 //POST => Used to get the order Detail =
 export const getAllOrderOfCustomer = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request<{}, {}, GetAllOrderBody>,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const {
       search = "",
       page = 1,
@@ -240,7 +248,10 @@ export const getAllOrderOfCustomer = asyncHandler(
 
 //POST => Used to update the order status
 export const updateOrderStatus = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { orderId } = req.params;
     const { orderStatus } = req.body;
     const orderFound = await Order.findById(orderId);
@@ -277,7 +288,10 @@ export const updateOrderStatus = asyncHandler(
 
 //POST => Used to update the payment status
 export const updatePaymentStatus = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const { orderId } = req.params;
     const { paymentStatus } = req.body;
     const orderFound = await Order.findById(orderId);

@@ -1,16 +1,25 @@
 import express from "express";
 import { Product } from "../models/product.model";
 import {
+  AddProductBody,
   asyncHandler,
   buildSearchPaginationSortingPipeline,
   CustomRequestWithFiles,
+  executePaginationAggregation,
+  ReturnResponseBody,
+  UpdateProductParams,
 } from "../utils/fuction";
 import fs from "fs";
 import path from "path";
 import Redis from "ioredis";
+import mongoose from "mongoose";
+
 //POST => Used to add the new product
 export const addNewProduct = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
+  async (
+    req: express.Request,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
     const customReq = req as CustomRequestWithFiles;
     const {
       productName,
@@ -19,24 +28,62 @@ export const addNewProduct = asyncHandler(
       productSize,
       defaultPrice,
       productCategory,
+    }: {
+      productName: string;
+      productDescription: string;
+      productQuantity: number; // Should be a number
+      productSize:
+        | string
+        | Array<{ size: string; price: number; quantity: number }>; // Can be a string (JSON) or parsed array
+      defaultPrice: number; // Should be a number
+      productCategory: string;
     } = customReq.body;
-
     // Handle file uploads
-    // Handle file uploads
-    let productImageList: string[] | null =
+    const productImageList: string[] | null =
       customReq.files && Array.isArray(customReq.files)
         ? customReq.files.map((file) => file.filename)
         : null;
 
+    // Handle `productSize`
+    let parsedProductSize: Array<{
+      size: string;
+      price: number;
+      quantity: number;
+    }> = [];
+    if (typeof productSize === "string") {
+      try {
+        parsedProductSize = JSON.parse(productSize); // Parse if it's a string
+      } catch (error) {
+        return res.status(400).json({
+          status: 400,
+          message: null,
+          data: null,
+          error:
+            "Invalid format for productSize. Ensure it's a valid JSON array.",
+        });
+      }
+    } else if (Array.isArray(productSize)) {
+      parsedProductSize = productSize; // Use as is if it's already an array
+    } else {
+      return res.status(400).json({
+        status: 400,
+        message: null,
+        data: null,
+        error: "Invalid type for productSize. Expected a JSON string or array.",
+      });
+    }
+
+    // Create the new product
     const newProduct = await Product.create({
       productName,
       productDescription,
       productQuantity,
-      productSize: productSize ? JSON.parse(productSize) : [],
-      defaultPrice: defaultPrice ? defaultPrice : undefined,
+      productSize: parsedProductSize,
+      defaultPrice: defaultPrice || undefined,
       productCategory,
       productImages: productImageList,
     });
+
     if (newProduct) {
       return res.status(200).json({
         status: 200,
@@ -58,10 +105,10 @@ export const addNewProduct = asyncHandler(
 //PUT => Used to update the details of the product
 export const updateProductDetails = asyncHandler(
   async (
-    req: express.Request,
-    res: express.Response
-  ): Promise<express.Response> => {
-    const { productId } = req.params;
+    req: express.Request<{ productId: string }, {}, AddProductBody, {}>,
+    res: express.Response<ReturnResponseBody>
+  ) => {
+    const productId = req.params.productId; // Correctly typed
     const {
       productName,
       productDescription,
@@ -81,18 +128,34 @@ export const updateProductDetails = asyncHandler(
       });
     }
 
-    let parsedProductSize;
-    try {
-      // Check if productSize is a string and parse it, otherwise use it as is
-      parsedProductSize =
-        typeof productSize === "string" ? JSON.parse(productSize) : productSize;
-    } catch (error) {
+    // Initialize the parsedProductSize variable
+    let parsedProductSize: Array<{
+      size: string;
+      price: number;
+      quantity: number;
+    }> = [];
+
+    // Check the type of productSize before processing
+    if (typeof productSize === "string") {
+      try {
+        parsedProductSize = JSON.parse(productSize); // Parse if it's a JSON string
+      } catch (error) {
+        return res.status(400).json({
+          status: 400,
+          message: null,
+          data: null,
+          error:
+            "Invalid format for productSize. Ensure it's a valid JSON array.",
+        });
+      }
+    } else if (Array.isArray(productSize)) {
+      parsedProductSize = productSize; // Use directly if it's already an array
+    } else {
       return res.status(400).json({
         status: 400,
         message: null,
         data: null,
-        error:
-          "Invalid format for productSize. Ensure it's a valid JSON array.",
+        error: "Invalid type for productSize. Expected a JSON string or array.",
       });
     }
 
@@ -104,7 +167,7 @@ export const updateProductDetails = asyncHandler(
           productName,
           productDescription,
           productQuantity,
-          productSize: parsedProductSize || [],
+          productSize: parsedProductSize,
           defaultPrice: defaultPrice || undefined,
           productCategory,
         },
@@ -132,49 +195,13 @@ export const updateProductDetails = asyncHandler(
   }
 );
 
-//POST => Used to update the status of the product
-export const updateProductStatus = asyncHandler(
-  async (
-    req: express.Request,
-    res: express.Response
-  ): Promise<express.Response> => {
-    const { productId } = req.params;
-    const productFound = await Product.findById(productId);
-    if (!productFound) {
-      return res.status(404).json({
-        status: 404,
-        message: null,
-        data: null,
-        error: "Sorry, the product was not found.",
-      });
-    }
-    const updateStatus = await Product.findByIdAndUpdate(productId, {
-      $set: {
-        isDeleted: true,
-      },
-    });
-    if (!updateStatus) {
-      return res.status(500).json({
-        status: 500,
-        message: null,
-        data: null,
-        error: "Sorry, the product could not be deleted.",
-      });
-    } else {
-      return res.status(200).json({
-        status: 200,
-        message: "Product deleted successfully.",
-        data: null,
-        error: null,
-      });
-    }
-  }
-);
-
 //DELETE => Used to delete the product
 export const deleteProduct = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
-    const { productId } = req.params;
+  async (
+    req: express.Request<{ productId: string }>,
+    res: express.Response<ReturnResponseBody>
+  ): Promise<express.Response> => {
+    const productId = req.params.productId;
     const productFound = await Product.findById(productId);
     if (!productFound) {
       return res.status(404).json({
@@ -205,8 +232,11 @@ export const deleteProduct = asyncHandler(
 
 //GET => Used to get the product by ID
 export const getProductByID = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
-    const { productId } = req.params;
+  async (
+    req: express.Request<{ productId: string }>,
+    res: express.Response
+  ) => {
+    const productId = req.params.productId;
     const productFound = await Product.findById(productId);
     if (!productFound) {
       return res.status(404).json({
@@ -227,9 +257,12 @@ export const getProductByID = asyncHandler(
 );
 //POST => Used to delete the multiple images of the product
 export const deleteMutipleProductImages = asyncHandler(
-  async (req: express.Request, res: express.Response) => {
-    const { productId } = req.params;
-    const { productimagesList } = req.body;
+  async (
+    req: express.Request<{ productId: string }>,
+    res: express.Response
+  ) => {
+    const productId = req.params.productId;
+    const productimagesList = req.body.productimagesList;
     if (!Array.isArray(productimagesList) || productimagesList.length === 0) {
       return res.status(400).json({
         status: 400,
@@ -287,9 +320,6 @@ export const deleteMutipleProductImages = asyncHandler(
 );
 
 //POST => Used to update the mutiple images of the product
-export interface RequestWithFiles extends express.Request {
-  files?: Express.Multer.File[]; // Adjusted to handle multiple files
-}
 //POST => Used to upload multiple images for the product
 export const uploadMultipleProductImages = asyncHandler(
   async (
@@ -348,34 +378,35 @@ export const listAllProducts = asyncHandler(
       sortField = "",
       sortOrder,
     } = req.body;
-    //initialize the redis
 
-    const client = new Redis();
-    //Convert query parameters to proper types
-    const currentPage = parseInt(page as string, 10) || 10;
+    const client = new Redis(); // Ideally, move this to a shared utility to reuse across controllers
+
+    // Convert query parameters to proper types
+    const currentPage = parseInt(page as string, 10) || 1;
     const pageSize = parseInt(limit as string, 10) || 10;
 
-    //Generate unique cache key
+    // Generate a unique cache key
     const cacheKey = `products_${JSON.stringify(
       search
     )}_${currentPage}_${pageSize}_${sortField}_${sortOrder}`;
 
-    //Check redis cache
+    // Check Redis cache
     const cacheData = await client.get(cacheKey);
     if (cacheData) {
-      console.log(res.__("productList"));
-      console.log("Cache");
+      console.log("Cache hit");
       return res.status(200).json({
         status: 200,
         sent: res.__("productList"),
-        message: "product list using cache",
+        message: "Product list fetched from cache",
         data: JSON.parse(cacheData),
         error: null,
       });
     }
-    //Define searchable fields
+
+    // Define searchable fields
     const searchFields = ["productName", "productDescription", "ratingCount"];
-    //Build the aggregation pipeline
+
+    // Build the aggregation pipeline
     const pipeline = [
       {
         $lookup: {
@@ -400,41 +431,142 @@ export const listAllProducts = asyncHandler(
         pageSize
       ),
     ];
-    //Execute the pipeline
 
-    const productDetails = await Product.aggregate(pipeline);
-    //Get total count for pagination
-    const totalCountPipeline = pipeline.filter(
-      (stage) => !("$skip" in stage || "$limit" in stage)
+    // Execute the common function
+    const { results, totalCount } = await executePaginationAggregation(
+      Product,
+      pipeline
     );
-    const totalCount = await Product.aggregate([
-      ...totalCountPipeline,
-      { $count: "totalCount" },
-    ]);
-    const totalProducts = totalCount.length > 0 ? totalCount[0].totalCount : 0;
-    if (productDetails.length === 0) {
+
+    if (results.length === 0) {
       return res.status(200).json({
         status: 200,
-        message: "No project has been created.",
-        data: { products: [], totalProducts, totalPages: 0, currentPage },
+        message: "No products found.",
+        data: { products: [], totalCount, totalPages: 0, currentPage },
         error: null,
       });
     }
-    //If the project length is greater than zero
-    const responeData = {
-      projects: productDetails,
-      totalProducts,
-      totalPages: Math.ceil(totalProducts / pageSize),
+
+    // Prepare response data
+    const responseData = {
+      products: results,
+      totalCount,
+      totalPages: Math.ceil(totalCount / pageSize),
       currentPage,
     };
-    //Cachen data in redis
-    await client.set(cacheKey, JSON.stringify(responeData), "EX", 30); //For 30 seconds
+
+    // Cache the data in Redis
+    await client.set(cacheKey, JSON.stringify(responseData), "EX", 30); // Cache for 30 seconds
+
     return res.status(200).json({
       status: 200,
       sent: res.__("productList"),
-      message: "Product list", // // Fetch the translated message
-      data: responeData,
+      message: "Product list",
+      data: responseData,
       error: null,
     });
+  }
+);
+
+//POST => list all product based on the given category id
+export const listProductsById = asyncHandler(
+  async (req: express.Request, res: express.Response) => {
+    const { categoryIds } = req.body;
+    if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+      return res.status(400).json({
+        status: 400,
+        message: "Invalid input. Please provide an array of category IDs.",
+        data: null,
+        error: "Invalid category IDs.",
+      });
+    }
+    try {
+      const products = await Product.aggregate([
+        {
+          $match: {
+            productCategory: {
+              $in: categoryIds.map((id) => new mongoose.Types.ObjectId(id)),
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "productCategory",
+            foreignField: "_id",
+            as: "categoryDetails",
+          },
+        },
+        {
+          $unwind: "$categoryDetails",
+        },
+        {
+          $project: {
+            "categoryDetails.name": 1, // Include only relevant fields from categoryDetails
+            "categoryDetails.description": 1,
+          },
+        },
+      ]);
+      if (products.length === 0) {
+        return res.status(404).json({
+          status: 404,
+          message: null,
+          data: null,
+          error: "No products found for the given category IDs.",
+        });
+      } else {
+        return res.status(200).json({
+          status: 200,
+          message: "Products with category details retrieved successfully",
+          data: products,
+          error: null,
+        });
+      }
+    } catch (err: any) {
+      return res.status(400).json({
+        status: 400,
+        message: "Invalid input. Please provide an array of category IDs.",
+        data: null,
+        error: "Invalid category IDs.",
+      });
+    }
+  }
+);
+//POST => Used to update the status of the product
+export const updateProductStatus = asyncHandler(
+  async (
+    req: express.Request<{ productId: string }>,
+    res: express.Response
+  ): Promise<express.Response> => {
+    const productId = req.params.productId;
+    const productFound = await Product.findById(productId);
+    if (!productFound) {
+      return res.status(404).json({
+        status: 404,
+        message: null,
+        data: null,
+        error: "Sorry, the product was not found.",
+      });
+    }
+    const updateStatus = await Product.findByIdAndUpdate(productId, {
+      $set: {
+        isDeleted: true,
+      },
+    });
+    if (!updateStatus) {
+      return res.status(500).json({
+        status: 500,
+        message: null,
+        data: null,
+        error: "Sorry, the product could not be deleted.",
+      });
+    } else {
+      return res.status(200).json({
+        status: 200,
+        message: "Product deleted successfully.",
+        data: null,
+        error: null,
+      });
+    }
   }
 );
