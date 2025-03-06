@@ -33,10 +33,11 @@ export const login = asyncHandler(
     res: express.Response
   ): Promise<express.Response> => {
     const { emailOrContactNumber, password } = req.body;
+    // email: {$regex : email, $options : "i"},
     const userFound = await User.findOne({
       $or: [
         {
-          email: emailOrContactNumber,
+          email: { $regex: emailOrContactNumber, $options: "i" },
         },
         {
           contactNumber: emailOrContactNumber,
