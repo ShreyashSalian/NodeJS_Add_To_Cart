@@ -1,0 +1,624 @@
+//Cart controller
+import mongoose, { Document, Types, Schema } from "mongoose";
+
+export interface ItemFields {
+  productId: Types.ObjectId;
+  productName: string;
+  quantity: number;
+  actualPrice: number;
+  price: number;
+}
+
+// 2. itemDocument = Fields + Document
+export interface itemDocument extends ItemFields, Document {}
+
+export interface CartDocument extends Document {
+  _id: string;
+  uniqueId: string;
+  items: ItemFields[];
+  bill: number;
+}
+
+const itemSchema = new Schema<itemDocument>({
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+  },
+  productName: {
+    type: String,
+  },
+  quantity: {
+    type: Number,
+    required: true,
+  },
+  actualPrice: {
+    type: Number,
+    required: true,
+  },
+  price: {
+    type: Number,
+    required: true,
+  },
+});
+
+const CartSchema = new Schema<CartDocument>({
+  uniqueId: {
+    type: String,
+    required: true,
+  },
+  items: [itemSchema],
+  bill: {
+    type: Number,
+  },
+});
+
+export const Cart = mongoose.model("Cart", CartSchema);
+export const Item = mongoose.model("Item", itemSchema);
+
+//product model
+import mongoose, { Document, Types, Schema } from "mongoose";
+// export interface Size {
+//   _id: string;
+//   size: string;
+//   price: number;
+//   description?: string;
+//   quantity: number;
+// }
+
+export interface ProductDocument extends Document {
+  _id: string;
+  productName: string;
+  productDescription: string;
+  productQuantity: number;
+  // productSize: Size[];
+  productImages: String[];
+  defaultPrice?: number;
+  productCategory: Types.ObjectId;
+  averageRating: number;
+  totalRating: number;
+  isDeleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// const sizeSchema = new Schema<Size>({
+//   size: {
+//     type: String,
+//     required: true,
+//   },
+//   price: {
+//     type: Number,
+//     required: true,
+//   },
+//   description: {
+//     type: String,
+//   },
+//   quantity: {
+//     type: Number,
+//     default: 0,
+//   },
+// });
+
+const productSchema = new Schema<ProductDocument>(
+  {
+    productName: {
+      type: String,
+      required: true,
+    },
+    productDescription: {
+      type: String,
+      required: true,
+    },
+    productQuantity: {
+      type: Number,
+      // required: function (this: ProductDocument) {
+      //   return this.productSize.length === 0; // Required if `product_size` is empty
+      // },
+    },
+    defaultPrice: {
+      type: Number,
+    },
+    // productSize: [sizeSchema],
+    // defaultPrice: {
+    //   type: Number,
+    //   required: function (this: ProductDocument) {
+    //     return this.productSize.length === 0; // Required if `product_size` is empty
+    //   },
+    // },
+    productImages: [
+      {
+        type: String,
+        required: true,
+      },
+    ],
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    productCategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+    },
+    averageRating: {
+      type: Number,
+      default: 0,
+    },
+    totalRating: {
+      type: Number,
+      default: 0,
+    },
+  },
+  {
+    timestamps: true, // Automatically adds `createdAt` and `updatedAt`
+  }
+);
+
+export const Product = mongoose.model<ProductDocument>(
+  "Product",
+  productSchema
+);
+//controller===================================================
+import express from "express";
+import { Product } from "../models/product.model";
+import {
+  asyncHandler,
+  CustomRequestWithFiles,
+  RequestWithFile,
+} from "../utils/function";
+import fs from "fs";
+import path from "path";
+import mongoose from "mongoose";
+import { ProductBody } from "../middlewares/category.middleware";
+
+export const addNewProduct = asyncHandler(
+  async (
+    req: express.Request,
+    res: express.Response
+  ): Promise<express.Response> => {
+    const customReq = req as RequestWithFile;
+    const {
+      productName,
+      productDescription,
+      productQuantity,
+      defaultPrice,
+      productCategory,
+    }: {
+      productName: string;
+      productDescription: string;
+      productQuantity: number;
+      defaultPrice: number;
+      productCategory: string;
+    } = customReq.body;
+
+    const productImageList: string[] | null =
+      customReq.files && Array.isArray(customReq.files)
+        ? customReq.files.map((file) => file.filename)
+        : null;
+
+    const newProduct = await Product.create({
+      productName,
+      productDescription,
+      productQuantity,
+      defaultPrice,
+      productCategory,
+      productImages: productImageList,
+    });
+    if (newProduct) {
+      return res.status(200).json({
+        status: 200,
+        message: "Product added successfully.",
+        data: newProduct,
+        error: null,
+      });
+    } else {
+      return res.status(500).json({
+        status: 500,
+        message: "Sorry, the product cannot be added.",
+        data: null,
+        error: "Product creation failed.",
+      });
+    }
+  }
+);
+
+export const updateProductDetails = asyncHandler(
+  async (
+    req: express.Request<{ productId: string }, {}, ProductBody>,
+    res: express.Response
+  ): Promise<express.Response> => {
+    const productId = req.params.productId;
+    const {
+      productName,
+      productDescription,
+      productQuantity,
+      defaultPrice,
+      productCategory,
+    } = req.body;
+    const productFound = await Product.findById(productId);
+    if (!productFound) {
+      return res.status(404).json({
+        status: 404,
+        message: null,
+        data: null,
+        error: "Sorry, the product was not found.",
+      });
+    }
+    const productUpdate = await Product.findByIdAndUpdate(
+      productId,
+      {
+        $set: {
+          productName,
+          productDescription,
+          productCategory,
+          productQuantity,
+          defaultPrice,
+        },
+      },
+      { new: true }
+    );
+    if (!productUpdate) {
+      return res.status(500).json({
+        status: 500,
+        message: null,
+        data: null,
+        error: "Sorry, the product could not be updated.",
+      });
+    } else {
+      return res.status(200).json({
+        status: 200,
+        message: "Product updated successfully.",
+        data: productUpdate,
+        error: null,
+      });
+    }
+  }
+);
+//DELETE => Used to delete the product
+export const deleteProduct = asyncHandler(
+  async (
+    req: express.Request<{ productId: string }>,
+    res: express.Response
+  ): Promise<express.Response> => {
+    const productId = req.params.productId;
+    const productFound = await Product.findById(productId);
+    if (!productFound) {
+      return res.status(404).json({
+        status: 404,
+        message: null,
+        data: null,
+        error: "Sorry, the product was not found.",
+      });
+    }
+    const deleteProduct = await Product.findByIdAndDelete(productId);
+    if (!deleteProduct) {
+      return res.status(500).json({
+        status: 500,
+        message: null,
+        data: null,
+        error: "Sorry, the product can not be deleted.",
+      });
+    } else {
+      return res.status(200).json({
+        status: 200,
+        message: "The product has been deleted successfully.",
+        data: null,
+        error: null,
+      });
+    }
+  }
+);
+
+//GET => Used to get the product by ID
+export const getProductByID = asyncHandler(
+  async (
+    req: express.Request<{ productId: string }>,
+    res: express.Response
+  ) => {
+    const productId = req.params.productId;
+    const productFound = await Product.findById(productId);
+    if (!productFound) {
+      return res.status(404).json({
+        status: 404,
+        message: null,
+        data: null,
+        error: "Sorry, the product was not found.",
+      });
+    } else {
+      return res.status(200).json({
+        status: 200,
+        message: "The product detail",
+        data: productFound,
+        error: null,
+      });
+    }
+  }
+);
+//POST => Used to delete the multiple images of the product
+export const deleteMutipleProductImages = asyncHandler(
+  async (
+    req: express.Request<{ productId: string }>,
+    res: express.Response
+  ) => {
+    const productId = req.params.productId;
+    const productimagesList = req.body.productimagesList;
+    if (!Array.isArray(productimagesList) || productimagesList.length === 0) {
+      return res.status(400).json({
+        status: 400,
+        data: null,
+        message: null,
+        error: "Please enter the product image that you want to delete.",
+      });
+    }
+    //Find the product
+    const productFound = await Product.findById(productId);
+    if (!productFound) {
+      return res.status(404).json({
+        status: 404,
+        message: null,
+        data: null,
+        error: "Sorry, no task product with the given task ID.",
+      });
+    }
+    //Filter the images that you wanted to delete from the product images list
+    const validImages = productimagesList.filter((images) => {
+      productFound?.productImages.includes(images);
+    });
+    if (validImages.length === 0) {
+      return res.status(400).json({
+        status: 400,
+        message: null,
+        data: null,
+        error: "No valid image to delete.",
+      });
+    }
+    //Delete the product images from the fileSystem
+    const deleteProductImages = validImages.map(async (image) => {
+      const filePath = path.resolve(__dirname, "../../public/images", image);
+      try {
+        await fs.unlink(filePath, (err) => {
+          console.log(err);
+        });
+      } catch (err: any) {
+        console.log(`Failed to delete the image : ${image} : ${err}`);
+      }
+    });
+    await Promise.all(deleteProductImages);
+    //Remove the image from the product
+    productFound.productImages = productFound.productImages.filter(
+      (image) => !validImages.includes(image)
+    );
+    await productFound.save({ validateBeforeSave: false });
+    return res.status(200).json({
+      status: 200,
+      data: productFound,
+      message: "The product images has been updated",
+      error: null,
+    });
+  }
+);
+
+//POST => Used to update the mutiple images of the product
+//POST => Used to upload multiple images for the product
+export const uploadMultipleProductImages = asyncHandler(
+  async (
+    req: express.Request,
+    res: express.Response
+  ): Promise<express.Response> => {
+    const { productId } = req.params;
+
+    // Find the product
+    const productFound = await Product.findById(productId);
+    if (!productFound) {
+      return res.status(404).json({
+        status: 404,
+        message: null,
+        error: "Sorry, no product found.",
+        data: null,
+      });
+    }
+
+    // Typecast the request to handle multiple files
+    const customReq = req as CustomRequestWithFiles;
+
+    // Ensure files are present and extract their filenames
+    const productImages: string[] =
+      customReq.files?.map((file) => file.filename) || [];
+    if (productImages.length === 0) {
+      return res.status(400).json({
+        status: 400,
+        message: null,
+        data: null,
+        error: "No attachments found in request.",
+      });
+    }
+
+    // Push new image filenames into the product's existing `productImages` array
+    productFound.productImages.push(...productImages);
+
+    // Save the updated product
+    await productFound.save({ validateBeforeSave: false });
+
+    return res.status(200).json({
+      status: 200,
+      message: "Product images uploaded successfully.",
+      data: productFound,
+      error: null,
+    });
+  }
+);
+
+//======================= cart=============================
+import express from "express";
+import {
+  Cart,
+  CartDocument,
+  Item,
+  itemDocument,
+  ItemFields,
+} from "../models/cart.model";
+import { asyncHandler } from "../utils/function";
+import { Product } from "../models/product.model";
+import mongoose from "mongoose";
+import { Category } from "../models/category.model";
+
+export const addItemToCart = asyncHandler(
+  async (
+    req: express.Request,
+    res: express.Response
+  ): Promise<express.Response> => {
+    const { productId, quantity, uniqueId } = req.body;
+    // Find the product
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        status: 404,
+        message: "Product not found.",
+        data: null,
+        error: null,
+      });
+    }
+    if (product.productQuantity < quantity) {
+      return res.status(400).json({ message: "Not enough stock" });
+    }
+    let cart = await Cart.findOne({ uniqueId: uniqueId });
+    if (cart) {
+      const index = cart.items.findIndex(
+        (p) => p.productId.toString() === productId
+      );
+      if (index > -1) {
+        cart.items[index].quantity += quantity;
+        cart.items[index].price +=
+          cart.items[index].quantity * cart.items[index].price;
+      } else {
+        const newItem: ItemFields = {
+          productId: new mongoose.Types.ObjectId(productId),
+          productName: product.productName,
+          quantity: quantity,
+          actualPrice: product.defaultPrice || 0,
+          price: (product.defaultPrice || 0) * quantity,
+        };
+
+        cart.items.push(newItem);
+      }
+    } else {
+      cart = new Cart({
+        uniqueId,
+        items: [
+          {
+            productId: productId,
+            productName: product.productName,
+            quantity: quantity,
+            actualPrice: product.defaultPrice,
+            price: product.defaultPrice,
+          },
+        ],
+      });
+    }
+    product.productQuantity = product.productQuantity - quantity;
+
+    await cart.save();
+    return res.status(200).json({
+      status: 200,
+      message: "Item added to cart successfully.",
+      data: cart,
+      error: null,
+    });
+  }
+);
+export const updateCartDocument = asyncHandler(
+  async (
+    req: express.Request,
+    res: express.Response
+  ): Promise<express.Response> => {
+    const { productId, quantity, uniqueId } = req.body;
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        status: 404,
+        message: "Product not found.",
+        data: null,
+        error: null,
+      });
+    }
+    if (product.productQuantity < quantity) {
+      return res.status(400).json({ message: "Not enough stock" });
+    }
+
+    const cart = await Cart.findOne({ uniqueId });
+    if (!cart) {
+      return res.status(404).json({ status: 404, message: "Cart not found" });
+    }
+
+    const index = cart.items.findIndex(
+      (p) => p.productId.toString() === productId
+    );
+
+    if (index === -1) {
+      return res
+        .status(404)
+        .json({ status: 404, message: "Product not in cart" });
+    }
+
+    const item = cart.items[index];
+    const oldQuantity = item.quantity;
+    item.actualPrice = product.defaultPrice || 0;
+    item.price = item.actualPrice * quantity;
+    item.quantity = quantity;
+    // Update stock
+    const difference = quantity - oldQuantity;
+    product.productQuantity = product.productQuantity - difference;
+
+    cart.bill = cart.items.reduce((acc, item) => acc + item.price, 0);
+
+    await cart.save();
+
+    return res.status(200).json({
+      message: "Cart item updated successfully",
+      cart,
+    });
+  }
+);
+
+export const deleteCartItem = asyncHandler(
+  async (
+    req: express.Request,
+    res: express.Response
+  ): Promise<express.Response> => {
+    const { uniqueId, productId } = req.body;
+    if (!uniqueId || !productId) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        status: 404,
+        message: "Product not found.",
+        data: null,
+        error: null,
+      });
+    }
+    const cart = await Cart.findOne({ uniqueId: uniqueId });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+    const initialLength = cart.items.length;
+    cart.items = cart.items.filter((item) => item.productId !== productId);
+    if (cart.items.length === initialLength) {
+      return res.status(404).json({ message: "Item not found in cart" });
+    }
+    cart.bill = cart.items.reduce((acc, item) => acc + item.price, 0);
+    await cart.save();
+    const index = cart.items.findIndex(
+      (p) => p.productId.toString() === productId
+    );
+    const deletedItem = cart.items[index];
+    product.productQuantity = product.productQuantity + deletedItem.quantity;
+    await product.save();
+
+    return res.status(200).json({
+      message: "Item removed from cart successfully",
+      cart,
+    });
+  }
+);

@@ -317,7 +317,7 @@ export const forgotPassword = asyncHandler(
     //Generate token for forgot password
     const token = crypto.randomBytes(32).toString("hex");
     const date = Date.now() + 3600000;
-    await User.findByIdAndDelete(userFound?._id, {
+    await User.findByIdAndUpdate(userFound?._id, {
       $set: {
         resetPasswordToken: token,
         resetPasswordTokenExpiry: date,
